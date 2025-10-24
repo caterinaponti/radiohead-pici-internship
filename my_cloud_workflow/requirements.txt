@@ -1,0 +1,11 @@
+pandas
+numpy
+anndata
+
+scanpy
+fcsparser
+flowsom
+pytometry
+
+matplotlib
+pooch
