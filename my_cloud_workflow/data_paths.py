@@ -3,7 +3,7 @@ import os
 # Base directory on the VM or local machine where your data will be mounted
 # You can override this by setting the BASE_DIR environment variable.
 # Default points to the local workspace path on macOS used in this project.
-GCS_MOUNT_DIR = os.getenv("GCS_MOUNT_DIR", "/Users/cponti/Desktop/mass_cytometry_analytics/")
+GCS_MOUNT_DIR = "/mnt/gcs"
 BASE_DIR = os.path.join(GCS_MOUNT_DIR, "my_project_data")
 
 #use os

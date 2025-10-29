@@ -23,10 +23,12 @@ def main():
 
     metadata_df = collect_filename_metadata(merged_df, barcodes, fcs_barcodes, filename_dict)
     metadata_df.to_csv(os.path.join(OUTPUT_DIR, "metadata_rows.csv"), index=False)
+    print("Collected metadata.")
 
     filtered_metadata = metadata_df.groupby("Timepoint").apply(
         lambda x: x.sample(n=min(SAMPLES_PER_TIMEPOINT, len(x)), random_state=42)
     ).reset_index(drop=True)
+    print("Filtered metadata.")
 
     
     adata_list = []
@@ -45,5 +47,37 @@ def main():
             adata_list.append(adata)
         except Exception as e:
             print(f"Error processing {file_path}: {e}")
+    print("Downsampling done.")
 
-    merged_adata = ad.concat(adata_list, join="outer", axis=0, label="sample_id", keys=[a.obs['sample_id'][0] for a in adata_list])
+    for adata in adata_list:
+        for col in adata.obs.select_dtypes(['category']).columns:
+            adata.obs[col] = adata.obs[col].astype(str)
+
+    # Ensure keys are unique for ad.concat, skip duplicates
+    keys = []
+    unique_adata_list = []
+    seen = set()
+    for a in adata_list:
+        key = a.obs['sample_id'][0]
+        if key in seen:
+            print(f"Warning: Duplicate sample_id found and skipped: {key}")
+            continue
+        seen.add(key)
+        keys.append(key)
+        unique_adata_list.append(a)
+
+    merged_adata = ad.concat(
+        unique_adata_list,
+        join="outer",
+        axis=0,
+        label="sample_id",
+        keys=keys
+    )
+
+    print("Starting clustering and UMAP visualization...")
+    preprocess_and_plot(merged_adata, OUTPUT_DIR)
+    print("Clustering and plotting completed successfully!")
+    print(f"Plots saved to: {OUTPUT_DIR}")
+
+if __name__ == "__main__":
+    main()

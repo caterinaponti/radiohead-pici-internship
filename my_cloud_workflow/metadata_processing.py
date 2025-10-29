@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 from data_paths import TIMEPOINTS
-import fcsparser
+from utils_io import parse_fcs
 
 def build_filename_dict(fcs_files):
     import re

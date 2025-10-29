@@ -2,6 +2,7 @@ import scanpy as sc
 from data_paths import COMBINED_ADATA_PATH
 
 def preprocess_and_plot(cd8_adata, output_dir):
+    sc.settings.figdir = output_dir
     markers_to_exclude = [
         'Residual', 'Time', 'beadDist', '131Xe_Environ', 'Center', 'Width',
         'Event_length', 'Offset', '138Ba_Environ', '120Sn_Environ', '133Cs_Environ'
@@ -22,3 +23,7 @@ def preprocess_and_plot(cd8_adata, output_dir):
 #vmc install to run jupyter notebook - GUI installer - display port VMC server 
 # runnging GUI - forces to a particulr port andconnect the monitor to the cloud display
 # need Wwindows App microsoft remote desktop - display port and location needs to talk to external IP for cloud - set up password 
+
+#tmux - different paths for different python versions - run them in the clud different sessions bash script 
+
+# 
