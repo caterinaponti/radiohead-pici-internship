@@ -6,6 +6,7 @@ from metadata_processing import build_filename_dict, collect_filename_metadata
 from data_processing import downsample_marker_aware
 from analysis import preprocess_and_plot
 import os
+import scanpy as sc
 
 barcodes = pd.read_csv(BARCODES_PATH)
 merged_df = pd.read_csv(MERGED_METADATA_PATH)
@@ -53,7 +54,7 @@ def main():
         for col in adata.obs.select_dtypes(['category']).columns:
             adata.obs[col] = adata.obs[col].astype(str)
 
-    # Ensure keys are unique for ad.concat, skip duplicates
+    # ensure keys are unique for ad.concat, skip duplicates
     keys = []
     unique_adata_list = []
     seen = set()
@@ -66,6 +67,15 @@ def main():
         keys.append(key)
         unique_adata_list.append(a)
 
+    for adata in unique_adata_list:
+        if not adata.obs_names.is_unique:
+            # Make obs_names unique by appending a unique integer
+            adata.obs_names = (
+                adata.obs_names.astype(str) + "_" + 
+                pd.Series(range(adata.shape[0]), index=adata.obs_names).astype(str)
+            )
+    
+
     merged_adata = ad.concat(
         unique_adata_list,
         join="outer",
@@ -74,10 +84,27 @@ def main():
         keys=keys
     )
 
-    print("Starting clustering and UMAP visualization...")
+    # save merged AnnData object
+    merged_adata.write(os.path.join(OUTPUT_DIR, "cd8_adata_full.h5ad"))
+    print(f"Saved merged AnnData to {os.path.join(OUTPUT_DIR, 'cd8_adata_full.h5ad')}")
+
+    print("Starting clustering, UMAP, and heatmap visualization...")
     preprocess_and_plot(merged_adata, OUTPUT_DIR)
-    print("Clustering and plotting completed successfully!")
-    print(f"Plots saved to: {OUTPUT_DIR}")
+    # Run pre- and on-treatment UMAP workflow
+    from analysis import pre_and_on_treatment_umap_workflow, save_silhouette_plots
+    pre, on = pre_and_on_treatment_umap_workflow(merged_adata, OUTPUT_DIR)
+    # Save silhouette plots for merged, pre, and on
+    if 'X_pca' not in merged_adata.obsm:
+        print("PCA not found in merged_adata, running PCA...")
+        sc.pp.scale(merged_adata)
+        sc.tl.pca(merged_adata, svd_solver='arpack')
+
+    sc.pp.neighbors(merged_adata, n_pcs=30, n_neighbors=15)
+    sc.tl.umap(merged_adata, random_state=42)
+
+    save_silhouette_plots(merged_adata, OUTPUT_DIR, prefix="merged_")
+    print("Clustering, plotting, and heatmap completed successfully!")
+    print(f"Plots and AnnData saved to: {OUTPUT_DIR}")
 
 if __name__ == "__main__":
     main()
