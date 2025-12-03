@@ -8,6 +8,7 @@ from analysis import preprocess_and_plot
 import os
 import scanpy as sc
 
+
 barcodes = pd.read_csv(BARCODES_PATH)
 merged_df = pd.read_csv(MERGED_METADATA_PATH)
 fcs_files = list_fcs_files(FCS_FOLDER)
@@ -92,8 +93,16 @@ def main():
     preprocess_and_plot(merged_adata, OUTPUT_DIR)
     # Run pre- and on-treatment UMAP workflow
     from analysis import pre_and_on_treatment_umap_workflow, save_silhouette_plots
+    from analysis import plot_silhouette_scores_as_boxplot
     pre, on = pre_and_on_treatment_umap_workflow(merged_adata, OUTPUT_DIR)
+
+    from analysis import plot_markers_by_timepoint
+    plot_markers_by_timepoint(pre, on, OUTPUT_DIR, prefix="cd8_")
+    print("Pre vs on treatment markers plotted.")
+
     # Save silhouette plots for merged, pre, and on
+    CLUSTER_RANGE = [5, 6, 7, 8, 9, 10]
+
     if 'X_pca' not in merged_adata.obsm:
         print("PCA not found in merged_adata, running PCA...")
         sc.pp.scale(merged_adata)
@@ -102,7 +111,20 @@ def main():
     sc.pp.neighbors(merged_adata, n_pcs=30, n_neighbors=15)
     sc.tl.umap(merged_adata, random_state=42)
 
-    save_silhouette_plots(merged_adata, OUTPUT_DIR, prefix="merged_")
+    save_silhouette_plots(merged_adata, OUTPUT_DIR, cluster_range=CLUSTER_RANGE, prefix="merged_")
+    plot_silhouette_scores_as_boxplot(merged_adata, OUTPUT_DIR, cluster_range=CLUSTER_RANGE, prefix="merged_")
+
+    print("Silhoutte boxplots completed!")
+
+    from analysis import plot_silhouette_boxplot_per_cluster
+    plot_silhouette_boxplot_per_cluster(merged_adata, OUTPUT_DIR, k=5, prefix="merged_")
+    plot_silhouette_boxplot_per_cluster(merged_adata, OUTPUT_DIR, k=6, prefix="merged_")
+    plot_silhouette_boxplot_per_cluster(merged_adata, OUTPUT_DIR, k=7, prefix="merged_")
+    plot_silhouette_boxplot_per_cluster(merged_adata, OUTPUT_DIR, k=8, prefix="merged_")
+    plot_silhouette_boxplot_per_cluster(merged_adata, OUTPUT_DIR, k=9, prefix="merged_")
+    plot_silhouette_boxplot_per_cluster(merged_adata, OUTPUT_DIR, k=10, prefix="merged_")
+    print("Done silhouette scores boxplot per cluster.")
+
     print("Clustering, plotting, and heatmap completed successfully!")
     print(f"Plots and AnnData saved to: {OUTPUT_DIR}")
 

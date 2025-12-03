@@ -2,6 +2,13 @@ import scanpy as sc
 import numpy as np
 import os
 from data_paths import COMBINED_ADATA_PATH
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_samples
+import plotly.express as px 
+
 
 def save_subsampled_adata(adata, output_dir, n_cells=1000):
     # ensure obs_names are unique
@@ -29,6 +36,9 @@ def plot_heatmap(adata, marker_cols, output_dir):
         return
     import scanpy as sc
     sc.settings.figdir = heatmap_dir
+
+    markers_to_exclude = ['Residual', 'Time', 'beadDist', '131Xe_Environ', 'Center', 'Width', 'Event_length', 'Offset',  '138Ba_Environ', '120Sn_Environ', '133Cs_Environ', 'Event_length' ]
+    marker_cols = [v for v in marker_cols if v not in markers_to_exclude]
     try:
         sc.pl.matrixplot(
             adata,
@@ -101,6 +111,49 @@ def pre_and_on_treatment_umap_workflow(merged_adata, output_dir):
    
     return pre, on
 
+import scanpy as sc
+import os
+
+def plot_markers_by_timepoint(pre_adata, on_adata, output_dir, prefix=""):
+    """
+    Plot UMAPs colored by clustering markers for pre-treatment and on-treatment samples.
+    Saves PNGs for each marker in a subdirectory.
+    """
+    clustering_markers = [
+        'CD45RA', 'CCR7', 'CD27', 'CD28', 'CD127', 'CD95',
+        'PD1', 'CTLA4', 'LAG3', 'TIM3', 'TIGIT', 'CD69', 'ICOS', 'CD25'
+    ]
+    umap_dir = os.path.join(output_dir, "MarkerUMAPs")
+    os.makedirs(umap_dir, exist_ok=True)
+
+    # Helper to plot for one AnnData object
+    def plot_umaps(adata, group_label):
+        for marker in clustering_markers:
+            if marker in adata.var_names:
+                try:
+                    sc.pl.umap(
+                        adata,
+                        color=[marker],
+                        cmap="viridis",
+                        vmin=0,
+                        vmax=5,
+                        save=f"_{prefix}{group_label}_{marker}.png",
+                        show=False
+                    )
+                    print(f"Saved UMAP for {marker} ({group_label})")
+                except Exception as e:
+                    print(f"Could not plot {marker} for {group_label}: {e}")
+            else:
+                print(f"Marker {marker} not found in {group_label} AnnData.")
+
+    # Set Scanpy's figure directory
+    sc.settings.figdir = umap_dir
+
+    plot_umaps(pre_adata, "Pre-Treatment")
+    plot_umaps(on_adata, "On-Treatment")
+
+    print(f"All marker UMAPs saved to: {umap_dir}") 
+
 def save_silhouette_plots(adata, output_dir, cluster_range=[5, 6, 7, 8, 9, 10], umap_key='X_umap', prefix=""):
     """
     Compute and save silhouette plots for KMeans clustering on UMAP coordinates.
@@ -159,3 +212,84 @@ def save_silhouette_plots(adata, output_dir, cluster_range=[5, 6, 7, 8, 9, 10], 
         fname = f"{prefix}silhouette_kmeans_{n_clusters}.png"
         plt.savefig(os.path.join(sil_dir, fname))
         plt.close(fig)
+
+def plot_silhouette_scores_as_boxplot(adata, output_dir, cluster_range, umap_key='X_umap', prefix=""):
+    """
+    Compute silhouette scores for all samples across a range of K values 
+    and display them as an interactive boxplot grouped by K using Plotly.
+    """
+    X = adata.obsm.get(umap_key)
+    if X is None:
+        print(f"Warning: UMAP coordinates not found in adata.obsm['{umap_key}']")
+        return
+
+    all_scores = []
+    print("Calculating individual silhouette scores for boxplot...")
+    for n_clusters in cluster_range:
+        clusterer = KMeans(n_clusters=n_clusters, random_state=10, n_init='auto')
+        cluster_labels = clusterer.fit_predict(X)
+        sample_silhouette_values = silhouette_samples(X, cluster_labels)
+        for score in sample_silhouette_values:
+            all_scores.append({'K': n_clusters, 'Silhouette Score': score})
+
+    df_scores = pd.DataFrame(all_scores)
+
+    fig = px.box(
+        df_scores, 
+        x="K", 
+        y="Silhouette Score", 
+        color="K",
+        title="Distribution of Silhouette Scores by Number of Clusters (K)",
+        points="outliers"
+    )
+    fig.update_traces(quartilemethod="exclusive")
+    fig.update_layout(
+        xaxis_title="Number of Clusters (K)",
+        yaxis_title="Individual Sample Silhouette Score",
+        yaxis_range=[-0.2, 1.0]
+    )
+
+    boxplot_dir = os.path.join(output_dir, "ClusterEvaluationPlots")
+    os.makedirs(boxplot_dir, exist_ok=True)
+    fname = f"{prefix}silhouette_boxplot_K_range.html"
+    fig.write_html(os.path.join(boxplot_dir, fname))
+    print(f"Interactive boxplot saved to: {os.path.join(boxplot_dir, fname)}")
+
+
+def plot_silhouette_boxplot_per_cluster(adata, output_dir, k=5, umap_key='X_umap', prefix=""):
+    """
+    Generate a boxplot of silhouette scores per cluster for a given K.
+    """
+    X = adata.obsm.get(umap_key)
+    if X is None:
+        print(f"Warning: UMAP coordinates not found in adata.obsm['{umap_key}']")
+        return
+
+    # KMeans clustering
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto')
+    cluster_labels = kmeans.fit_predict(X)
+
+    # Silhouette scores
+    sample_silhouette_values = silhouette_samples(X, cluster_labels)
+
+    # DataFrame for plotting
+    silhouette_df = pd.DataFrame({
+        'Silhouette Score': sample_silhouette_values,
+        'Cluster': cluster_labels
+    })
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x='Cluster', y='Silhouette Score', data=silhouette_df)
+    plt.title(f'Silhouette Score Distribution per Cluster for K={k}')
+    plt.xlabel('Cluster Label')
+    plt.ylabel('Silhouette Score')
+    plt.grid(axis='y', linestyle='--')
+
+    # Save
+    boxplot_dir = os.path.join(output_dir, "ClusterEvaluationPlots")
+    os.makedirs(boxplot_dir, exist_ok=True)
+    fname = f"{prefix}silhouette_boxplot_per_cluster_k{k}.png"
+    plt.savefig(os.path.join(boxplot_dir, fname), bbox_inches='tight', dpi=300)
+    plt.close()
+    print(f"Per-cluster silhouette boxplot saved to: {os.path.join(boxplot_dir, fname)}")
