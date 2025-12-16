@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Biorepository Explorer</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        form { margin-bottom: 20px; }
+        select { margin-right: 10px; }
+        
+        .top-button {
+            position: fixed; 
+                top: 60px;
+                right: 60px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 6px 14px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+                border-radius: 6px;
+                border: none;
+
+                color: #fff;
+                background: linear-gradient(180deg, #4B91F7 0%, #367AF6 100%);
+                background-origin: border-box;
+                box-shadow: 0px 0.5px 1.5px rgba(54, 122, 246, 0.25), inset 0px 0.8px 0px -0.25px rgba(255, 255, 255, 0.2);
+                user-select: none;
+                -webkit-user-select: none;
+                touch-action: manipulation;
+                }
+
+        .top-button:focus {
+            box-shadow: inset 0px 0.8px 0px -0.25px rgba(255, 255, 255, 0.2), 0px 0.5px 1.5px rgba(54, 122, 246, 0.25), 0px 0px 0px 3.5px rgba(58, 108, 217, 0.5);
+            outline: 0;
+            }
+    </style>
+
+
+</head>
+<body>
+    <h1>🧬 Biorepository 2024 Sample Explorer</h1>
+    <p>Use filters below to explore samples from the RADIOHEAD clinical trial.</p>
+    <p>Choose Biorepository</p>
+
+    <form method="post">
+        <label>Biorepository:</label>
+        <label>
+            <input type="radio" name="biorepository" value="2024" {% if selected_biorepository == '2024' %}checked{% endif %}>
+            Biorepository 2024
+        </label>
+        <label>
+            <input type="radio" name="biorepository" value="2025" {% if selected_biorepository == '2025' %}checked{% endif %}>
+            Biorepository 2025
+        </label>
+
+        <br><br>
+
+        <label>Group Samples by:</label>
+        <select name="x_axis">
+            <option value="Cancer Type" {% if x_axis_choice == 'Cancer Type' %}selected{% endif %}>Cancer Type</option>
+            <option value="Timepoint" {% if x_axis_choice == 'Timepoint' %}selected{% endif %}>Timepoint</option>
+        </select>
+        <br>
+
+        <label>Medical History:</label>
+        <select name="medical_history">
+            <option value="All">All</option>
+            {% for col in general_medical_history_cols %}
+            <option value="{{ col }}" {% if selected_medical_history == col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+        </select>
+        <br>
+
+        <label>Pre-treatment:</label>
+        <select name="pre_treat">
+            <option value="All">All</option>
+            {% for col in pretreat_columns %}
+            <option value="{{ col }}" {% if selected_pre_treat == col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+        </select>
+        <br>
+
+        <label>irAE:</label>
+        <select name="irae">
+            <option value="All">All</option>
+            {% for col in irAE_columns %}
+            <option value="{{ col }}" {% if selected_irAE == col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+        </select>
+        <br>
+
+        <label>Color By:</label>
+        <select name="color_by">
+            <option value="None">None</option>
+            {% for col in color_by_cols %}
+            <option value="{{ col }}" {% if color_by == col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+        </select>
+        <br>
+
+        <button type="submit">Apply Filters</button>
+    </form>
+    
+
+    <h2>📊 Sample Count Bar Chart</h2>
+    {{ bar_chart|safe }}
+
+
+<form action="{{ url_for('submit_action') }}" method="post">
+    <input type="hidden" name="biorepository" value="{{ selected_biorepository }}">
+    <!-- other form fields -->
+     
+    <button class="top-button" id="myButton" type="submit">Sample Distribution Donut Chart</button>
+</form>
+
+
+    <h2>Filtered Data Table</h2>
+    <style>
+        .pretty-table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 16px;
+            background: #fafbfc;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .pretty-table th, .pretty-table td {
+            border: 1px solid #e1e4e8;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .pretty-table th {
+            background: #f6f8fa;
+            color: #24292f;
+            font-weight: bold;
+        }
+        .pretty-table tr:nth-child(even) {
+            background: #f3f4f6;
+        }
+        .pretty-table tr:hover {
+            background: #eaecef;
+        }
+    </style>
+    {% if filtered_df is not none and not filtered_df.empty %}
+    <table class="pretty-table">
+        <thead>
+            <tr>
+                {% for col in filtered_df.columns %}
+                    <th>{{ col }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+                <tbody>
+            {% for row in filtered_df.values %}
+                <tr>
+                    {% for col in range(filtered_df.columns|length) %}
+                        {% set col_name = filtered_df.columns[col] %}
+                        {% set cell = row[col] %}
+                        {% if col_name == "Participant ID" %}
+                            <td>
+                                <a href="{{ url_for('patient_detail', subject_id=cell) }}">{{ cell }}</a>
+                            </td>
+                        {% else %}
+                            <td>{{ cell }}</td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No data to display for the selected filters.</p>
+{% endif %}
+
+    
+
+
+   

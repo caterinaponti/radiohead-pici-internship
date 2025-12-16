@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+        body { font-family: Arial; margin: 40px; }
+        form { margin-bottom: 20px; }
+        select { margin-right: 10px; }
+    </style>
+
+</head>
+<body>
+
+<h2>Patient: {{ subject_id }}</h2>
+<h3>Metadata</h3>
+<ul>
+    {% for key, value in patient_meta.items() %}
+    <li><b>{{ key }}:</b> {{ value }}</li>
+    {% endfor %}
+</ul>
+<h3>Samples</h3>
+<style>
+        .pretty-table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 16px;
+            background: #fafbfc;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .pretty-table th, .pretty-table td {
+            border: 1px solid #e1e4e8;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .pretty-table th {
+            background: #f6f8fa;
+            color: #24292f;
+            font-weight: bold;
+        }
+        .pretty-table tr:nth-child(even) {
+            background: #f3f4f6;
+        }
+        .pretty-table tr:hover {
+            background: #eaecef;
+        }
+    </style>
+
+<table class="pretty-table"> 
+    
+    <tr>
+        <th>Barcode</th>
+        <th>Material Type</th>
+        <th>Timepoint</th>
+       
+    </tr>
+    {% for sample in patient_samples %}
+    <tr>
+        <td>{{ sample['Barcode'] }}</td>
+        <td>{{ sample['Material Type'] }}</td>
+        <td>{{ sample['Barcode Timepoint'] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+</body>

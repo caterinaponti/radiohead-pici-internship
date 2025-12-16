@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Biorepository Explorer</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        form { margin-bottom: 20px; }
+        select { margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🧬 Biorepository 2024 Sample Explorer</h1>
+    <p>Use filters below to explore samples from the RADIOHEAD clinical trial.</p>
+
+    <form method="post">
+
+        <label>Biorepository:</label>
+        <label>
+            <input type="radio" name="biorepository" value="2024" {% if selected_biorepository == '2024' %}checked{% endif %}>
+            Biorepository 2024
+        </label>
+        <label>
+            <input type="radio" name="biorepository" value="2025" {% if selected_biorepository == '2025' %}checked{% endif %}>
+            Biorepository 2025
+        </label>
+
+        <br><br>
+
+        <label for="cancer">Cancer Type:</label>
+        <select name="cancer" id="cancer">
+            <option value="All" {% if cancer == "All" %}selected{% endif %}>All</option>
+            {% for ctype in cancer_types %}
+            <option value="{{ ctype }}" {% if cancer == ctype %}selected{% endif %}>{{ ctype }}</option>
+            {% endfor %}
+        </select>
+
+        <br>
+        
+        <label for="timepoint">Timepoint:</label>
+        <select name="timepoint" id="timepoint">
+            <option value="All" {% if timepoint == "All" %}selected{% endif %}>All</option>
+            {% for tp in timepoints %}
+            <option value="{{ tp }}" {% if timepoint == tp %}selected{% endif %}>{{ tp }}</option>
+            {% endfor %}
+        </select>
+        
+        <br>
+
+         <label for="patient_tubes">Group By:</label>
+        <select name="patient_tubes", id="patient_tubes">
+            <option value="Patient Count" {% if filter2 == "Patient Count"  %}selected{% endif %}>Patient Count</option>
+            <option value="Tubes Count" {% if filter2 == 'Tubes Count' %}selected{% endif %}>Tubes Count</option>
+        </select>
+
+        <button type="submit">Apply Filters</button>
+    </form>
+    
+    <h2>{{ donut_plot_title }}</h2>
+    {{ donut_chart|safe }}
+
+    
+
+
+
+   
