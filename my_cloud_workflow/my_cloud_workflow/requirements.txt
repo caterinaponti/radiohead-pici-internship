@@ -9,3 +9,8 @@ pytometry
 
 matplotlib
 pooch
+scikit-image
+plotly
+seaborn 
+scikit-learn 
+

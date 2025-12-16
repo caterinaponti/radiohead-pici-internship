@@ -8,6 +8,8 @@ import seaborn as sns
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples
 import plotly.express as px 
+from skimage.filters import threshold_otsu
+import numpy as np
 
 
 def save_subsampled_adata(adata, output_dir, n_cells=1000):
@@ -27,21 +29,73 @@ def save_subsampled_adata(adata, output_dir, n_cells=1000):
     adata_sub.write(sub_path)
     return adata_sub, sub_path
 
+def gate_live_cells(adata, marker='195Pt_Live_Dead'):
+    """
+    Automatically gate live cells using Otsu's method on the platinum signal.
+    Returns a boolean mask for live cells.
+    """
+    if marker not in adata.var_names:
+        raise ValueError(f"Marker {marker} not found in AnnData object.")
+    # Extract the marker expression
+    vals = adata[:, marker].X
+    if hasattr(vals, "toarray"):
+        vals = vals.toarray().flatten()
+    else:
+        vals = np.array(vals).flatten()
+    # Compute Otsu's threshold
+    threshold = threshold_otsu(vals)
+    print(f"Otsu-determined threshold for {marker}: {threshold:.3f}")
+    # Live cells are those below the threshold
+    live_mask = vals < threshold
+    return live_mask
+
 def plot_heatmap(adata, marker_cols, output_dir):
+    import scanpy as sc
+    import numpy as np
+    import pandas as pd
+    from sklearn.preprocessing import StandardScaler
+
     heatmap_dir = os.path.join(output_dir, "Heatmaps")
     try:
         os.makedirs(heatmap_dir, exist_ok=True)
     except Exception as e:
         print(f"Warning: Could not create directory {heatmap_dir}: {e}")
         return
-    import scanpy as sc
     sc.settings.figdir = heatmap_dir
 
-    markers_to_exclude = ['Residual', 'Time', 'beadDist', '131Xe_Environ', 'Center', 'Width', 'Event_length', 'Offset',  '138Ba_Environ', '120Sn_Environ', '133Cs_Environ', 'Event_length' ]
+    markers_to_exclude = [
+        'Residual', 'Time', 'beadDist', '131Xe_Environ', 'Center', 'Width',
+        'Event_length', 'Offset', '138Ba_Environ', '120Sn_Environ', '133Cs_Environ', 
+        '181Ta', '190BCKG', '191Ir_DNA1', '193Ir_DNA2', '194Pt','195Pt_Live_Dead', 
+        '196Pt', '198Pt', '208Pb', '191Ir_DNA1', '193Ir_DNA2', 'CD45', '102Pd', '103Rh', 
+        '104Pd', '105Pd', '106Pd', '108Pd', '110Pd', '111Cd', 'CD3'
+    ]
+
+    # Remove dead cells based on 195Pt_Live_Dead
+    if '195Pt_Live_Dead' in adata.var_names:
+        live_mask = gate_live_cells(adata, marker='195Pt_Live_Dead')
+        adata = adata[live_mask, :].copy()
+
+    # Exclude unwanted markers
     marker_cols = [v for v in marker_cols if v not in markers_to_exclude]
+
+    # Remove the first 9 markers (by order in marker_cols)
+    if len(marker_cols) > 9:
+        marker_cols = marker_cols[9:]
+
+    # Z-score normalization (column-wise, per marker)
+    # Only for the selected markers
+    X = adata[:, marker_cols].X
+    if hasattr(X, "toarray"):
+        X = X.toarray()
+    scaler = StandardScaler()
+    X_z = scaler.fit_transform(X)
+    # Create a temporary AnnData for plotting
+    adata_z = sc.AnnData(X_z, obs=adata.obs.copy(), var=pd.DataFrame(index=marker_cols))
+
     try:
         sc.pl.matrixplot(
-            adata,
+            adata_z,
             var_names=marker_cols,
             groupby="leiden",
             cmap="viridis",
@@ -49,17 +103,24 @@ def plot_heatmap(adata, marker_cols, output_dir):
             show=False
         )
     except Exception as e:
-        print(f"Warning: Could not save heatmap: {e}")
-    
+        print(f"Warning: Could not save heatmap: {e}") 
 
 def preprocess_and_plot(cd8_adata, output_dir):
     sc.settings.figdir = os.path.join(output_dir, "CD8_UMAPs")
     os.makedirs(sc.settings.figdir, exist_ok=True)
     markers_to_exclude = [
         'Residual', 'Time', 'beadDist', '131Xe_Environ', 'Center', 'Width',
-        'Event_length', 'Offset', '138Ba_Environ', '120Sn_Environ', '133Cs_Environ'
-    ]
+        'Event_length', 'Offset', '138Ba_Environ', '120Sn_Environ', '133Cs_Environ', 
+        '181Ta', '190BCKG', '191Ir_DNA1' '193Ir_DNA2', '194Pt','195Pt_Live_Dead', 
+        '196Pt', '198Pt', '208Pb', '191Ir_DNA1', '193Ir_DNA2', '102Pd', '103Rh', 
+        '104Pd', '105Pd', '106Pd', '108Pd', '110Pd', '111Cd'
+    ]  
 
+    # Remove dead cells based on 195Pt_Live_Dead
+    if '195Pt_Live_Dead' in cd8_adata.var_names:
+        live_mask = gate_live_cells(cd8_adata, marker='195Pt_Live_Dead')
+        cd8_adata = cd8_adata[live_mask, :].copy()
+        
     markers_to_keep = ~cd8_adata.var_names.isin(markers_to_exclude)
     cd8_adata = cd8_adata[:, markers_to_keep].copy()
 
@@ -119,6 +180,7 @@ def plot_markers_by_timepoint(pre_adata, on_adata, output_dir, prefix=""):
     Plot UMAPs colored by clustering markers for pre-treatment and on-treatment samples.
     Saves PNGs for each marker in a subdirectory.
     """
+
     clustering_markers = [
         'CD45RA', 'CCR7', 'CD27', 'CD28', 'CD127', 'CD95',
         'PD1', 'CTLA4', 'LAG3', 'TIM3', 'TIGIT', 'CD69', 'ICOS', 'CD25'
