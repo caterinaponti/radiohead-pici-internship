@@ -36,3 +36,17 @@ This folder contains Python scripts and modules for processing, analyzing, and m
 ## Cloud Setup
 For full instructions on setting up a cloud VM, GUI, Python environments, and Google Cloud Storage mounting, see [`CLOUD_SETUP.md`](CLOUD_SETUP.md).
 
+## Public Data Files for Reproducibility
+
+To enable reproducibility and code testing without exposing sensitive data, public-friendly versions of key data files are provided in `my_project_data/`:
+
+- `biorepo_2025_df_clean_REDCap_records_merged.csv`: First 5 rows of the main REDCap records, all columns preserved.
+- `barcodes.csv`: First 5 rows of the barcodes file, all columns preserved.
+- `df_clean_ready_for_web_app.csv`: First 5 rows of the cleaned data for the web app, all columns preserved.
+- `fcs_files/cytonorm-Teiko035-006_blend_PIC002_P01_Pop01.fcs`: Example FCS file with a few events and markers, structure preserved.
+
+These files are intended for public sharing, reproducibility, and code testing. All original columns and structure are retained, but only a small subset of rows/events is included. No sensitive or full datasets are exposed.
+
+
+
+
